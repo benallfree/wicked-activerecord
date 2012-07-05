@@ -16,7 +16,7 @@ class ArCodeGenerator
   
   function compute_model_settings($klass, $tn)
   {
-  	$arr = query_assoc("desc $tn");
+  	$arr = W::db_query_assoc("desc $tn");
   	$attr=array();
   	foreach($arr as $rec)
   	{
@@ -29,7 +29,7 @@ class ArCodeGenerator
  
       if($rec['Key']=="PRI") $this->model_info[$klass]['pk'] = $rec['Field'];
   		$this->model_info[$klass]['type'][$rec['Field']] = $typeinfo;
-  		$this->model_info[$klass]['is_nullable'][$rec['Field']] = $rec['Null']=='YES' || in($rec['Field'], 'id', 'created_at', 'updated_at');
+  		$this->model_info[$klass]['is_nullable'][$rec['Field']] = $rec['Null']=='YES' || W::array_in($rec['Field'], 'id', 'created_at', 'updated_at');
   		$this->model_info[$klass]['is_auto_increment'][$rec['Field']] = ($rec['Extra'] == 'auto_increment');
   		$parts = preg_split("/[\\(\\)]/", $rec['Type']);
   		$type = array_shift($parts);
@@ -137,7 +137,7 @@ class ArCodeGenerator
   		  case 'blob':
   		    break;
   		  default:
-  		    wicked_error("Unsupported data type {$rec['Type']}", array($klass, $rec));
+  		    W::error("Unsupported data type {$rec['Type']}", array($klass, $rec));
   		    break;
   		}
   		$this->model_info[$klass]['default_value'][$rec['Field']] = $rec['Default'];
@@ -156,13 +156,13 @@ class ArCodeGenerator
   		foreach($fields as $data)
   		{
   			$field_name = $data['Field'];
-  			if (endswith($field_name, '_id'))
+  			if (W::endswith($field_name, '_id'))
   			{
-  			  $bt_alias = startof($field_name,'_id');
-  			  $bt_class_name = $this->config['class_prefix'].classify($bt_alias);
+  			  $bt_alias = W::startof($field_name,'_id');
+  			  $bt_class_name = $this->config['class_prefix'].W::classify($bt_alias);
   			  if ($data['Comment']!='')
   			  {
-  			    $bt_class_name = $this->config['class_prefix'].classify(singularize(trim($data['Comment'])));
+  			    $bt_class_name = $this->config['class_prefix'].W::classify(W::singularize(trim($data['Comment'])));
   			  }
   			  if($bt_class_name == '-') continue; 
   				$belongs_to[$table_name][$bt_alias] = array($bt_class_name, $field_name);
@@ -177,7 +177,7 @@ class ArCodeGenerator
     $has_many = array();
     foreach($tables as $table_name=>$fields)
     {
-      $stn = singularize($table_name);
+      $stn = W::singularize($table_name);
   		$has_many[$table_name] = array();
   		$hm_duplicates = array();
   		foreach($tables as $hm_table_name=>$hm_fields)
@@ -186,7 +186,7 @@ class ArCodeGenerator
   			{
   		    if($data['Comment']=='-') continue; // force skip
   				$field_name = $data['Field'];
-   			  if ($data['Comment']!='') $field_name = strtolower(singularize(tableize($data['Comment']))) .'_id';
+   			  if ($data['Comment']!='') $field_name = strtolower(W::singularize(tableize($data['Comment']))) .'_id';
   				if ($field_name != $stn.'_id') continue; // skip if it's not referring back to the master table
   			  if (isset($hm_duplicates[$hm_table_name]))
   			  {
@@ -202,7 +202,7 @@ class ArCodeGenerator
     			  $hm_duplicates[$hm_table_name] = false; // not duplicated yet
     			  $hm_table_alias = $hm_table_name;
   			  }
-  			  $hm_klass_name = $this->config['class_prefix'].classify(singularize($hm_table_name));
+  			  $hm_klass_name = $this->config['class_prefix'].W::classify(W::singularize($hm_table_name));
   				$has_many[$table_name][$hm_table_alias] = array($hm_klass_name, $data['Field'], $hm_table_name);
   			}
   		}
@@ -222,7 +222,7 @@ class ArCodeGenerator
         foreach($belongs_to[$btn] as $bt_name=>$bt_info)
         {
           if($bt_info[1]==$hm_info[1]) continue;
-          $hmt_name = pluralize($bt_name);
+          $hmt_name = W::pluralize($bt_name);
           if(array_key_exists($hmt_name, $has_many[$table_name])) $hmt_name = "{$hmt_name}_through_{$hm_name}";
           $has_many_through[$table_name][$hmt_name] = array($hm_name, $bt_name);
         }
@@ -248,7 +248,7 @@ class ArCodeGenerator
   function find_tables()
   {
     $tables = array();
-    $recs = query_assoc("show tables");
+    $recs = W::db_query_assoc("show tables");
     $this->config['models']=array();
     foreach($recs as $table)
     {
@@ -257,9 +257,9 @@ class ArCodeGenerator
         if(!$this->should_codegen_table($table_name)) continue;
         $ar_table_name = $this->deprefix($table_name);
         $this->config['table_lookup'][$ar_table_name] = $table_name;
-        $tables[$ar_table_name] = query_assoc("show full columns from $table_name");
-        $stn = singularize($ar_table_name);
-        $klass=classify($stn);
+        $tables[$ar_table_name] = W::db_query_assoc("show full columns from $table_name");
+        $stn = W::singularize($ar_table_name);
+        $klass=W::classify($stn);
         $this->compute_model_settings($klass, $table_name);
         $this->config['models'][] = $klass;
         
@@ -274,21 +274,21 @@ class ArCodeGenerator
     $attribute_types = array();
     foreach($tables as $table_name=>$fields)
     {
-      $stn = singularize($table_name);
-      $klass=classify($stn);
+      $stn = W::singularize($table_name);
+      $klass=W::classify($stn);
     
   		$attribute_types[$table_name] = array();
   
       foreach($this->model_info[$klass]['type'] as $k=>$column_info)
       {
         list($type,$length) = $column_info;
-        if(!isset($this->config['type_mappings'][$type])) wicked_error("No type mapping '$type' for $table_name.$k");
+        if(!isset($this->config['type_mappings'][$type])) W::error("No type mapping '$type' for $table_name.$k");
         $v = array('type'=>$this->config['type_mappings'][$type] , 'required'=>!$this->model_info[$klass]['is_nullable'][$k], 'default'=>$this->model_info[$klass]['default_value'][$k]);
         if(isset($this->config['conventions'][$type]))
         {
           foreach($this->config['conventions'][$type] as $c_word=>$c_value)
           {
-            if(has_word($k, $c_word))
+            if(W::has_word($k, $c_word))
             {
               $v['type'] = $c_value;
             }
@@ -299,23 +299,23 @@ class ArCodeGenerator
       foreach($belongs_to[$table_name] as $k=>$info)
       {
         $attribute_types[$table_name][$info[1]]['type'] = 'select';
-        $attribute_types[$table_name][$info[1]]['item_array'] = 'available_'.pluralize($k);
+        $attribute_types[$table_name][$info[1]]['item_array'] = 'available_'.W::pluralize($k);
         $attribute_types[$table_name][$info[1]]['display_field']='name';
         $attribute_types[$table_name][$info[1]]['value_field']='id';
         $attribute_types[$table_name][$k]['type'] = 'select';
-        $attribute_types[$table_name][$k]['item_array'] = 'available_'.pluralize($k);
+        $attribute_types[$table_name][$k]['item_array'] = 'available_'.W::pluralize($k);
         $attribute_types[$table_name][$k]['display_field']='name';
         $attribute_types[$table_name][$k]['value_field']='id';
       }
       
       foreach($has_many[$table_name] as $k=>$info)
       {
-        $attribute_types[$table_name][$k] = array('type'=>'mutex', 'item_array'=>'available_'.$k, 'selected_item_array'=>$k, 'display_field'=>'name', 'value_field'=>'id', 'klass'=>singularize(classify($info[0])));
+        $attribute_types[$table_name][$k] = array('type'=>'mutex', 'item_array'=>'available_'.$k, 'selected_item_array'=>$k, 'display_field'=>'name', 'value_field'=>'id', 'klass'=>W::singularize(W::classify($info[0])));
       }
       foreach($has_many_through[$table_name]  as $k=>$hmk)
       {
         $hm_table_name = $has_many[$table_name][$hmk[0]][2];
-        $klass = $this->config['class_prefix'].singularize(classify($belongs_to[$hm_table_name][$hmk[1]][0])); // Have to look up the underlying table from the $belongs_to via the $has_many assoc name
+        $klass = $this->config['class_prefix'].W::singularize(W::classify($belongs_to[$hm_table_name][$hmk[1]][0])); // Have to look up the underlying table from the $belongs_to via the $has_many assoc name
         $attribute_types[$table_name][$k] = array('type'=>'mutex', 'item_array'=>'available_'.$k, 'selected_item_array'=>$k, 'display_field'=>'name', 'value_field'=>'id', 'klass'=>$klass);
       }
     }
@@ -327,7 +327,7 @@ class ArCodeGenerator
     $uniques = array();
     foreach($tables as $table_name=>$fields)
     {
-      $res = query_assoc("show index from `!`", $table_name);
+      $res = W::db_query_assoc("show index from `!`", $table_name);
       $keys = array();
       foreach($res as $r)
       {
@@ -347,7 +347,7 @@ class ArCodeGenerator
     {
       if(preg_match("/{$this->config['prefix']}{$e}/", $s, $matches))
       {
-        if(count($matches)==1) wicked_error("No table name captured in /$e/");
+        if(count($matches)==1) W::error("No table name captured in /$e/");
         return $matches[1];
       }
     }
@@ -367,16 +367,16 @@ class ArCodeGenerator
     
     foreach($tables as $table_name=>$fields)
     {
-      $stn = singularize($table_name);
-      $klass=classify($this->deprefix($stn));
+      $stn = W::singularize($table_name);
+      $klass=W::classify($this->deprefix($stn));
+
+  		$s_belongs_to = W::s_var_export($belongs_to[$table_name]);
+  		$s_has_many = W::s_var_export($has_many[$table_name]);
+  		$s_hmt = W::s_var_export($has_many_through[$table_name] );
+      $s_attribute_types = W::s_var_export($attribute_types[$table_name]);
+      $s_uniques = W::s_var_export($uniques[$table_name]); 
     
-  		$s_belongs_to = s_var_export($belongs_to[$table_name]);
-  		$s_has_many = s_var_export($has_many[$table_name]);
-  		$s_hmt = s_var_export($has_many_through[$table_name] );
-      $s_attribute_types = s_var_export($attribute_types[$table_name]);
-      $s_uniques = s_var_export($uniques[$table_name]); 
-    
-      $php = "<?\n".eval_php($this->base_fpath."/codegen/class_stub.php", 
+      $php = "<?\n".W::php_sandbox($this->base_fpath."/codegen/class_stub.php", 
   		  array(
   		    'klass'=>"{$this->config['class_prefix']}{$klass}",
   		    's_belongs_to'=>$s_belongs_to,
@@ -387,8 +387,8 @@ class ArCodeGenerator
   		    'table_name'=>$this->config['table_lookup'][$table_name],
   		    'stn'=>$stn,
   		    's_uniques'=>$s_uniques,
-  		    's_model_settings'=>s_var_export($this->model_info[$klass]),
-  		    's_attribute_names'=>s_var_export($this->attribute_names[$klass]),
+  		    's_model_settings'=>W::s_var_export($this->model_info[$klass]),
+  		    's_attribute_names'=>W::s_var_export($this->attribute_names[$klass]),
   		  ),
   		  true
   		);
@@ -401,6 +401,7 @@ class ArCodeGenerator
   
   function codegen_model_extension($stn)
   {
+    W::dprint("what is this?");
     global $__wax;
   
     $php = '';
@@ -424,17 +425,18 @@ class ArCodeGenerator
 
   function calc_hash()
   {
-    global $__wicked;
-    
     if($this->config['always_generate']) return microtime(true);
 
     $keys = array();
-    $recs = query_assoc("show tables");
-    $tables = collect($recs, "Tables_in_".$__wicked['modules']['db']['current']['credentials']['catalog']);
+    $recs = W::db_query_assoc("show tables");
+    $tables = W::array_collect($recs, function($rec) {
+      $db_info = W::db_current();
+      return $rec["Tables_in_".$db_info['credentials']['catalog']];    
+    });
     foreach($tables as $k)
     {
       if(!$this->should_codegen_table($k)) continue;
-      $recs = query_assoc("show full columns from `$k`");
+      $recs = W::db_query_assoc("show full columns from `$k`");
       $cols = array("Field", "Type", "Null", "Key", "Default", "Extra", "Comment");
       $digest = array();
       for($i=0;$i<count($recs);$i++)
@@ -448,9 +450,6 @@ class ArCodeGenerator
       $digest = md5(join('|',$digest));
       $keys[] = $digest;
     }
-    
-    $keys[] = md5_file($this->base_fpath."/codegen/class_stub.php");
-    $keys[] = md5_file($this->base_fpath."/codegen.php");
     sort($keys);
 
     $md5 = md5(join('|',$keys));

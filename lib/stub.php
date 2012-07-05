@@ -182,12 +182,6 @@ function &get_collection_members_by_prop_val($collection, $field_name, $val, $so
   return $res;
 }
 
-function has_word($s, $word)
-{
-  $words = explode(' ', strtolower(humanize($s)));
-  $word = strtolower($word);
-  return array_search($word, $words)!==false;
-}
 
 function activerecord_responds_to($klass, $name)
 {

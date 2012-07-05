@@ -1,4 +1,6 @@
 <?
 
-$config['class_fpath'] = $config['cache_fpath']."/classes";
-W::$autoloads[] = $config['class_fpath'];
+W::lazyload_add_path($config['cache_fpath']);
+
+require('codegen.php');
+require($config['cache_fpath']."/config.php");

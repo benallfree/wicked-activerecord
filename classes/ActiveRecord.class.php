@@ -4,6 +4,7 @@ class ActiveRecord
 {
   var $is_new=true;
   var $errors=array();
+  static $eager_load = array();
 
   function responds_to($name)
   {
@@ -11,9 +12,64 @@ class ActiveRecord
     
   }
   
+  
   function __get  ($name)
   {
-	   return get_property($this, $name);
+    foreach( array($name, $name.'__builtin') as $prop)
+    {
+      $f = "{$this->tableized_klass}_get_$prop";
+      //$this->ensure_extension_loaded($f, $this->tableized_klass);  LAZY LOAD AR libs in modules using action instead?
+  
+      if (function_exists($f))
+      {
+        return call_user_func($f, $o);
+      }
+      $cf=$f."__d";
+      if (function_exists($cf))
+      {
+        $prop = "__cached__$prop";
+        if (isset($this->$prop)) return $this->$prop;;
+        $this->$prop = call_user_func($cf, $o);
+        return $this->$prop;
+      }
+    }
+  
+    if (array_key_exists($name, static::$belongs_to))
+    {
+      $this->a($name);
+      return $this->$name;
+    }
+    if (array_key_exists($name, static::$has_many))
+    {
+      $this->a($name);
+      return $this->$name;
+    }
+    if (array_key_exists($name, static::$has_many_through))
+    {
+      $this->a($name);
+      return $this->$name;
+    }
+    
+    $hms = static::$has_many;
+    foreach($hms as $hm=>$arr)
+    {
+      $fk = $arr[1];
+      $tn = W::singularize($hm);
+      $kn = W::classify(W::singularize($arr[0]));
+      if(preg_match("/^{$hm}_count$/", $name, $matches))
+      {
+        return get_model_count($o, $kn, $fk);
+      }
+    }
+    
+    if(preg_match("/^is_(.+)_dirty$/",$name,$matches))
+    {
+      list($junk,$prop_name) = $matches;
+      $ov = "{$prop_name}_original_value";
+      return $this->$prop_name != $o->$ov;
+    }
+  
+    W::error("No getter defined $f");
 	}
 	
 	function __call($name, $arguments)
@@ -32,10 +88,10 @@ class ActiveRecord
   function __construct($params=array())
   {
   	$this->is_valid=true;
-	  $an = get_user_prop($this->klass, 'attribute_names');
+	  $an = static::$attribute_names;
   	foreach($an as $k)
   	{
-  	  $ms = get_user_prop($this->klass,'model_settings');
+  	  $ms = static::$model_settings;
   		$this->$k = $ms['default_value'][$k];
   		$this->_format($k);
   		$thisv = "{$k}_original_value";
@@ -81,9 +137,9 @@ class ActiveRecord
   
   function event($event_name, $event_args = array())
   {
-    $obj_name = singularize(tableize($this->klass));
+    $obj_name = W::singularize(W::tableize($this->klass));
     $event_name = "{$obj_name}_{$event_name}";
-    do_action($event_name, $this, $event_args);
+    W::action($event_name, $this, $event_args);
   }
   
   static function _find($klass, $params=array())
@@ -111,9 +167,9 @@ class ActiveRecord
   
   static function _select_assoc($klass, $params)
   {
-    $tn = singularize(tableize($klass));
+    $tn = W::singularize(W::tableize($klass));
     $event_name = "{$tn}_before_select";
-    $params = do_filter($event_name, $params);
+    $params = W::filter($event_name, $params);
     
   	$tn = ActiveRecord::_model_table_name($klass);
     $columns = "$tn.*";
@@ -126,7 +182,7 @@ class ActiveRecord
   	if(array_key_exists('conditions', $params)) $where = 'where ' . $params['conditions'];
   	if(array_key_exists('limit', $params)) $limit = 'limit ' . $params['limit'];
   	if(array_key_exists('order', $params)) $order = 'order by ' . $params['order'];
-  	return query_assoc("select $columns from $tn $joins $where $order $limit");
+  	return W::db_query_assoc("select $columns from $tn $joins $where $order $limit");
   }
   
 
@@ -144,7 +200,7 @@ class ActiveRecord
   	$where = 'where 1=1';
   	if(array_key_exists('conditions', $params)) $where = 'where ' . $params['conditions'];
   	$tn = ActiveRecord::_model_table_name($klass);
-  	query("delete from $tn $where");
+  	W::db_query("delete from $tn $where");
   }
   
   function delete()
@@ -153,7 +209,7 @@ class ActiveRecord
     $tn = ActiveRecord::_model_table_name($this->klass); 
     $sql = "delete from $tn where {$this->pk()}={$this->id()}";
     $this->last_query = $sql;
-    query($sql);
+    W::db_query($sql);
     $this->event('after_delete');
   }
   
@@ -221,7 +277,7 @@ class ActiveRecord
       foreach($text as &$word) $word = "+".$word;
       $text = join(' ', $text);
       $text = ActiveRecord::sanitize($text);
-      $table_name = tableize($klass);
+      $table_name = W::tableize($klass);
       
       $params = ActiveRecord::add_condition(
         $params,
@@ -241,7 +297,7 @@ class ActiveRecord
   	if ($order && strlen($order)>0) $params['order'] = $order;
   	if (!isset($load)) $load = array();
   	if (!is_array($load)) $load=array($load);
-  	$params['load'] = merge($load, eval("return $klass::\$eager_load;")); //fixme
+  	$params['load'] = array_merge($load, static::$eager_load);
   	return $params;
   }
   
@@ -290,7 +346,7 @@ class ActiveRecord
   
   function id()
   {
-  	$ms = get_user_prop($this->klass, 'model_settings');
+  	$ms = static::$model_settings;
   	$pk = $ms['pk'];
   	if(func_num_args()>0)
   	{
@@ -301,7 +357,7 @@ class ActiveRecord
 
   function pk()
   {
-  	$ms = get_user_prop($this->klass, 'model_settings');
+  	$ms = static::$model_settings;
   	return $ms['pk'];
   }
   
@@ -310,7 +366,7 @@ class ActiveRecord
   	$params = ActiveRecord::construct_params($klass, $params);
   	$arr = ActiveRecord::_select_assoc($klass, $params);
   	$recs=array();
-  	$ms = get_user_prop($klass, 'model_settings');
+  	$ms = static::$model_settings;
   	foreach($arr as $rec)
   	{
   		$o = new $klass();
@@ -431,7 +487,7 @@ class ActiveRecord
         $bt_klass,
         $bt_fk
       ) = $bt_array;
-      $ids=collect($objs,$bt_fk);
+      $ids=W::array_collect($objs,$bt_fk);
       if (count($ids)==0) continue;
 
       $ids = array_map("ActiveRecord::sanitize", $ids);
@@ -470,9 +526,9 @@ class ActiveRecord
       if (array_search ($hm_alias, $current_assocs)===FALSE) continue;
   
 
-      $hm_klass = classify(singularize($hm));
+      $hm_klass = W::classify(W::singularize($hm));
   
-      $ids=collect($objs,'id', $hm);
+      $ids=W::array_collect($objs,'id', $hm);
       
       for($i=0;$i<count($objs);$i++)
       {
@@ -507,7 +563,7 @@ class ActiveRecord
   	  if (array_search ($hmt_alias, $current_assocs)===FALSE) continue;
   	  foreach($objs as $obj) $obj->$hmt_alias = array();
 
-      $ids=collect($objs,'id');
+      $ids=W::array_collect($objs,'id');
       if (count($ids)==0) continue;
 
       list(
@@ -515,13 +571,13 @@ class ActiveRecord
         $hm_fk
       ) = eval("return $klass::\$has_many['$hm_assoc'];");
 
-      $hm_table_name = get_user_prop($hm_klass, 'table_name');
+      $hm_table_name = static::$table_name;
       
       list(
         $bt_klass,
         $bt_fk
       ) = eval("return $hm_klass::\$belongs_to['$bt_assoc'];");
-      $bt_table_name = get_user_prop($bt_klass, 'table_name');
+      $bt_table_name = static::$table_name;
 
       $ids = join(array_unique($ids),',');
       $params = array(
@@ -571,7 +627,7 @@ class ActiveRecord
     if($this->$k===null) return null;
   
     $klass = $this->klass;
-	  $ms = get_user_prop($klass,'model_settings');
+	  $ms = static::$model_settings;
 		if(!isset($ms['type'][$k])) return;
     list($type, $length) = $ms['type'][$k];
 		switch($type)
@@ -676,7 +732,7 @@ class ActiveRecord
   	
   	// Validate presence
   	$fields = eval("return $klass::\$validates_presence_of;");
-	  $ms = get_user_prop($klass,'model_settings');
+	  $ms = static::$model_settings;
   	foreach($ms['is_nullable'] as $k=>$v)
   	{
   		if ( (!$v) && array_search($k, array('id', 'created_at', 'updated_at'))===FALSE)
@@ -784,7 +840,7 @@ class ActiveRecord
     $this->event('unserialize');
     
     $klass = $this->klass;
-	  $an = get_user_prop($klass, 'attribute_names');
+	  $an = static::$attribute_names;
     foreach($an as $k)
     {
       $ov = "{$k}_original_value";
@@ -878,8 +934,8 @@ function index()
     
     // valiate db formats
   	$klass=$this->klass;
-	  $ms = get_user_prop($klass,'model_settings');
-	  $an = get_user_prop($klass, 'attribute_names');
+	  $ms = static::$model_settings;
+	  $an = static::$attribute_names;
     foreach($an as $field)
   	{
       // post-serialize
@@ -927,7 +983,7 @@ function index()
   	$this->event('before_insert');
 
   	$klass=$this->klass;
-	  $ms = get_user_prop($klass,'model_settings');
+	  $ms = static::$model_settings;
   	if ($ms['is_auto_increment']['id']) $attrs = $this->attributes_except('id'); else $attrs = $this->attributes();
   	if (array_key_exists('created_at', $attrs))
   	{
@@ -987,7 +1043,7 @@ function index()
   	$tn = ActiveRecord::_model_table_name($klass);
   	$sql = "insert into $tn ($fields) values ($values)";
   	$this->last_query = $sql;
-  	query($sql);
+  	W::db_query($sql);
   	if ($ms['is_auto_increment']['id']) 
   	{
       global $__wicked;
@@ -1016,7 +1072,7 @@ function index()
   function update()
   {
   	$klass=$this->klass;
-	  $ms = get_user_prop($klass,'model_settings');
+	  $ms = static::$model_settings;
   	if ($ms['is_auto_increment']['id']) $attrs = $this->attributes_except('id'); else $attrs = $this->attributes();
   	if (array_key_exists('updated_at', $attrs))
   	{
@@ -1070,14 +1126,14 @@ function index()
   	$tn = ActiveRecord::_model_table_name($klass);
   	$sql = "update $tn set $assignments where {$this->pk()}='{$this->id()}'";
   	$this->last_query = $sql;
-  	query($sql);
+  	W::db_query($sql);
   	return true;
   }
   
   function attributes()
   {
   	$attr = array();
-  	$an = get_user_prop($this->klass, 'attribute_names');
+  	$an = static::$attribute_names;
   	foreach($an as $k)
   	{
   		$attr[$k] = $this->$k;
@@ -1124,12 +1180,12 @@ function index()
       {
         if ($coll == $v)
         {
-          return classify(singularize($v));
+          return W::classify(W::singularize($v));
         }
       } else {
         if ($coll == $v)
         {
-          return classify(singularize($k));
+          return W::classify(W::singularize($k));
         }
       }
     }
@@ -1204,7 +1260,7 @@ function index()
   
   function copy()
   {
-    $names = get_user_prop($this->klass, 'attribute_names');
+    $names = static::$attribute_names;
     $o = new $this->klass();
     foreach($names as $n)
     {

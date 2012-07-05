@@ -1,10 +1,11 @@
 <?
 
 $config = array(
-  'requires'=>array('eval_php', 'inflection', 'db', 'collections', 'exec','string',),
+  'requires'=>array('php_sandbox', 'inflection', 'db', 'collections'),
 );
+
 $config['tables'] = array(
-  'include'=>array(),
+  'include'=>array('(.*)'),
   'exclude'=>array(),
 );
 
