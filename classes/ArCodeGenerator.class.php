@@ -16,7 +16,7 @@ class ArCodeGenerator
   
   function compute_model_settings($klass, $tn)
   {
-  	$arr = W::db_query_assoc("desc $tn");
+  	$arr = W::db_query_assoc("desc `$tn`");
   	$attr=array();
   	foreach($arr as $rec)
   	{
@@ -257,7 +257,7 @@ class ArCodeGenerator
         if(!$this->should_codegen_table($table_name)) continue;
         $ar_table_name = $this->deprefix($table_name);
         $this->config['table_lookup'][$ar_table_name] = $table_name;
-        $tables[$ar_table_name] = W::db_query_assoc("show full columns from $table_name");
+        $tables[$ar_table_name] = W::db_query_assoc("show full columns from `$table_name`");
         $stn = W::singularize($ar_table_name);
         $klass=W::classify($stn);
         $this->compute_model_settings($klass, $table_name);
@@ -429,7 +429,7 @@ class ArCodeGenerator
 
     $keys = array();
     $recs = W::db_query_assoc("show tables");
-    $tables = W::array_collect($recs, function($rec) {
+    $tables = W::array_collect($recs, function($k, $rec) {
       $db_info = W::db_current();
       return $rec["Tables_in_".$db_info['credentials']['catalog']];    
     });

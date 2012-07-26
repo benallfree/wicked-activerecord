@@ -487,7 +487,9 @@ class ActiveRecord
         $bt_klass,
         $bt_fk
       ) = $bt_array;
-      $ids=W::array_collect($objs,$bt_fk);
+      $ids=W::array_collect($objs, function($k, $v) use(&$bt_fk) {
+        return $v[$bt_fk];
+      });
       if (count($ids)==0) continue;
 
       $ids = array_map("ActiveRecord::sanitize", $ids);
@@ -528,11 +530,14 @@ class ActiveRecord
 
       $hm_klass = W::classify(W::singularize($hm));
   
-      $ids=W::array_collect($objs,'id', $hm);
+      // Collect all the IDs of the objects
+      $ids=W::array_collect($objs, function($k,$v) {
+        return $v->id;
+      });
       
-      for($i=0;$i<count($objs);$i++)
+      foreach($objs as $k=>$v)
       {
-      	$objs[$i]->$hm_alias = array();
+        $objs[$k]->$hm_alias = array();
       }
       
       if (count($ids)==0) continue;
@@ -563,7 +568,9 @@ class ActiveRecord
   	  if (array_search ($hmt_alias, $current_assocs)===FALSE) continue;
   	  foreach($objs as $obj) $obj->$hmt_alias = array();
 
-      $ids=W::array_collect($objs,'id');
+      $ids=W::array_collect($objs,function($k,$v) {
+        return $v->id;
+      });
       if (count($ids)==0) continue;
 
       list(
