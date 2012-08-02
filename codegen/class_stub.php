@@ -12,6 +12,8 @@ class <?=$klass?> extends ActiveRecord
   static $attribute_types = <?=$s_attribute_types?>;
   static $attribute_names = <?=$s_attribute_names?>;
   static $model_settings = <?=$s_model_settings?>;
+  static $functions = array();
+  static $properties = array();
   public static $extend;
   var $klass = '<?=$klass?>';
   var $tableized_klass = '<?=$stn?>';

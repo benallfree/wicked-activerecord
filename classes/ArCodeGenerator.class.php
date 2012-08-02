@@ -452,6 +452,9 @@ class ArCodeGenerator
     }
     sort($keys);
 
+    $keys[] = md5_file(dirname(__FILE__)."/../codegen.php");
+    $keys[] = md5_file(dirname(__FILE__)."/../codegen/class_stub.php");
+
     $md5 = md5(join('|',$keys));
     
     return $md5;

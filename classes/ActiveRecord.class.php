@@ -5,7 +5,17 @@ class ActiveRecord
   var $is_new=true;
   var $errors=array();
   static $eager_load = array();
-
+  
+  static function add_function($func_name, $callback)
+  {
+    static::$functions[$func_name] = $callback;
+  }
+  
+  static function add_property($prop_name, $callback, $is_determinstic = false)
+  {
+    static::$properties[$prop_name] = $callback;
+  }
+  
   function responds_to($name)
   {
     return activerecord_responds_to($this->klass, $name);
@@ -15,25 +25,11 @@ class ActiveRecord
   
   function __get  ($name)
   {
-    foreach( array($name, $name.'__builtin') as $prop)
+    if(isset(static::$properties[$name]))
     {
-      $f = "{$this->tableized_klass}_get_$prop";
-      //$this->ensure_extension_loaded($f, $this->tableized_klass);  LAZY LOAD AR libs in modules using action instead?
-  
-      if (function_exists($f))
-      {
-        return call_user_func($f, $o);
-      }
-      $cf=$f."__d";
-      if (function_exists($cf))
-      {
-        $prop = "__cached__$prop";
-        if (isset($this->$prop)) return $this->$prop;;
-        $this->$prop = call_user_func($cf, $o);
-        return $this->$prop;
-      }
+      return call_user_func(static::$properties[$name], $this);
     }
-  
+    
     if (array_key_exists($name, static::$belongs_to))
     {
       $this->a($name);
@@ -72,15 +68,71 @@ class ActiveRecord
     W::error("No getter defined $f");
 	}
 	
-	function __call($name, $arguments)
+	function __call($name, $args)
 	{
-    return call_ar_func($this, $name, $arguments);
+    array_unshift($args, $this);
+    if(isset(static::$functions[$name]))
+    {
+      return call_user_func_array(static::$functions[$name], $args);
+    }
+    
+    $hms = static::$has_many;
+    if(preg_match('/^find_(.+)_by_(.+)$/', $name, $matches))
+    {
+      list($junk,$hm_name, $prop_name) = $matches;
+      if(array_key_exists($hm_name,$hms))
+      {
+        $val = array_shift($arguments);
+        $sort_by = null;
+        if($arguments) $sort_by = array_shift($arguments);
+        $v = get_collection_members_by_prop_val($this->$hm_name, $prop_name, $val, $sort_by);
+      } else {
+        list($val) = $arguments;
+        $hm_name = pluralize($hm_name);
+        $v = get_collection_member_by_prop($this->$hm_name, $prop_name, $val);
+      }
+      return $v;
+    }
+
+    if(preg_match('/^purge(.+)$/', $name, $matches))
+    {
+      list($junk,$prop_name) = $matches;
+      $this->purge($prop_name);
+      return;
+    }
+
+    if(isset($hms[$name]))
+    {
+      $params = array();
+      if(count($arguments)>0) $params = array_shift($arguments);
+      $params = ActiveRecord::add_condition($params, "{$hms[$name][1]} = ?", $this->id);
+      $objs = ActiveRecord::_find_all(classify(singularize($hms[$name][0])), $params);
+      return $objs;
+    }
+    
+    $hmt = static::$has_many_through;
+    if(isset($hmt[$name]))
+    {
+/*
+      $o->a($name);
+      return $o->$name;
+*/
+      list($junction_table_name, $fk_name) = $hmt[$name];
+      $params = array();
+      if(count($arguments)>0) $params = array_shift($arguments);
+      $table_name = static::$table_name;
+      $params['joins'] = "join $junction_table_name r on r.{$fk_name}_id = {$name}.id and r.user_id = {$o->id}";
+      $objs = ActiveRecord::_find_all(classify(singularize($name)), $params);
+      return $objs;
+    }
+        
+    W::error("No function $f()");	 
 	}
 
   
   static function _create_or_update_by($klass, $params=array())
   {
-  	$o = eval("return $klass::find_or_new_by(\$params);");
+  	$o = static::$find_or_new_by($params);
   	$o->save();
   	return $o;
   }
@@ -127,10 +179,10 @@ class ActiveRecord
   	$old_o = $o;
   	if (!$o->is_valid)
   	{
-      wicked_error("Attempt to create invalid model.", $o);
+      W::error("Attempt to create invalid model.", $o);
     }
     $o = $o->reload();
-    if (!$o) wicked_error("Failed to reload object. Should never happen.", array($old_o, $klass, $params, $queries));
+    if (!$o) W::error("Failed to reload object. Should never happen.", array($old_o, $klass, $params, $queries));
     $o->event('after_create');
   	return $o;
   }
@@ -247,7 +299,7 @@ class ActiveRecord
   static function construct_params($klass, $params)
   {
 	  $allowed_params = array('columns', 'joins', 'attributes', 'conditions', 'data', 'limit', 'load', 'current_page', 'page_size', 'total', 'total_pages', 'order', 'search', 'post_filters');
-	  foreach(array_keys($params) as $key) if(array_search($key, $allowed_params)===FALSE) wicked_error("Unrecognized ActiveRecord parameter $key in $klass query.", $params);
+	  foreach(array_keys($params) as $key) if(array_search($key, $allowed_params)===FALSE) W::error("Unrecognized ActiveRecord parameter $key in $klass query.", $params);
   	if ($params) extract($params);
   	$options = array('columns', 'joins', 'attributes', 'conditions', 'data', 'limit');
   	foreach($options as $option) eval("if (isset(\$$option) && \$$option) \$params['$option'] = \$$option;");
@@ -616,7 +668,7 @@ class ActiveRecord
   
   static function _model_table_name($klass)
   {
-  	if ($klass=='activerecord') wicked_error("Recursion error on $klass");
+  	if ($klass=='activerecord') W::error("Recursion error on $klass");
   	$tn = eval("return $klass::\$table_name;");
   	return $tn;
   }
@@ -688,7 +740,7 @@ class ActiveRecord
         }
         break;
       default:
-        wicked_error("Unsupported type for $k: " . $type, $this);
+        W::error("Unsupported type for $k: " . $type, $this);
     }
   }
    
@@ -944,13 +996,13 @@ function index()
       // validation checking
       if (is_object($this->$field)|| is_array($this->$field)) 
       {
-        wicked_error("$field is an object or array. Did you forget to serialize()?", array($this, $event_table)); 
+        W::error("$field is an object or array. Did you forget to serialize()?", array($this, $event_table)); 
       }
       if (array_key_exists('db_format', $ms) && array_key_exists($field, $ms['db_format']))
       {
       	if (preg_match($ms['db_format'][$field], $this->$field)==0)
       	{
-          wicked_error("{$klass}->{$field} is not of the format {$ms['db_format'][$field]}. Failed to serialize properly.", array($this, $event_table));
+          W::error("{$klass}->{$field} is not of the format {$ms['db_format'][$field]}. Failed to serialize properly.", array($this, $event_table));
       	}
       }
     }

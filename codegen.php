@@ -25,5 +25,6 @@ if(!file_exists($hash_fpath))
   \$config['model_info'] = $model_info;
   \$config['attribute_names'] = $attribute_names;
 PHP;
+
   file_put_contents($config['cache_fpath']."/config.php", $php);
 }
