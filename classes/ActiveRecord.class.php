@@ -196,9 +196,9 @@ class ActiveRecord
   
   static function _find($klass, $params=array())
   {
-  	$params = ActiveRecord::construct_params($klass, $params);
+  	$params = self::construct_params($klass, $params);
   	$params['limit']=1;
-  	$arr = ActiveRecord::_select_assoc($klass,$params);
+  	$arr = self::_select_assoc($klass,$params);
   	if (count($arr)==0) return null;
   	$o = new $klass();
   	$o->is_new=false;
@@ -207,7 +207,7 @@ class ActiveRecord
   	if ($params['load'])
   	{
   	  $recs = array($o);
-  	  ActiveRecord::eager_load_associated($klass, $recs, $params['load']);
+  	  self::eager_load_associated($klass, $recs, $params['load']);
   	  $o = $recs[0];
   	}
   
@@ -223,7 +223,7 @@ class ActiveRecord
     $event_name = "{$tn}_before_select";
     $params = W::filter($event_name, $params);
     
-  	$tn = ActiveRecord::_model_table_name($klass);
+  	$tn = self::_model_table_name($klass);
     $columns = "$tn.*";
     $joins = '';
     $where = '';
@@ -251,14 +251,14 @@ class ActiveRecord
   	}
   	$where = 'where 1=1';
   	if(array_key_exists('conditions', $params)) $where = 'where ' . $params['conditions'];
-  	$tn = ActiveRecord::_model_table_name($klass);
+  	$tn = self::_model_table_name($klass);
   	W::db_query("delete from $tn $where");
   }
   
   function delete()
   {
     $this->event('before_delete');
-    $tn = ActiveRecord::_model_table_name($this->klass); 
+    $tn = self::_model_table_name($this->klass); 
     $sql = "delete from $tn where {$this->pk()}={$this->id()}";
     $this->last_query = $sql;
     W::db_query($sql);
@@ -277,7 +277,7 @@ class ActiveRecord
   
   static function _find_or_create_by($klass, $params=array())
   {
-  	$params = ActiveRecord::construct_params($klass, $params);
+  	$params = self::construct_params($klass, $params);
   	$o = eval("return $klass::find(\$params);");
   	if (!$o)
   	{
@@ -291,8 +291,8 @@ class ActiveRecord
     $unsets = array('columns', 'limit', 'columns');
     foreach($unsets as $unset) unset($params[$unset]);
     $params['columns'] = "count(id) c";
-  	$params = ActiveRecord::construct_params($klass, $params);
-    $res = ActiveRecord::_select_assoc($klass, $params);
+  	$params = self::construct_params($klass, $params);
+    $res = self::_select_assoc($klass, $params);
     return $res[0]['c'];
   }
   
@@ -315,7 +315,7 @@ class ActiveRecord
       $pag_params = $params;
       unset($pag_params['current_page']);
       unset($pag_params['order']);
-      $count = ActiveRecord::_count($klass, $pag_params);
+      $count = self::_count($klass, $pag_params);
       
       $total_pages = (int)(max(1,ceil($count/$page_size)));
       $current_page = max(1,min($total_pages, $params['current_page']));
@@ -328,10 +328,10 @@ class ActiveRecord
       $text = explode(' ', preg_replace("/[^A-Za-z0-9\$]/", " ", $params['search']));
       foreach($text as &$word) $word = "+".$word;
       $text = join(' ', $text);
-      $text = ActiveRecord::sanitize($text);
+      $text = self::sanitize($text);
       $table_name = W::tableize($klass);
       
-      $params = ActiveRecord::add_condition(
+      $params = self::add_condition(
         $params,
         "id in (!)",
         "SELECT record_id FROM search WHERE MATCH (search_text) AGAINST ('$text' IN boolean MODE) AND model_name = '$klass'"
@@ -386,7 +386,7 @@ class ActiveRecord
   
   static function _find_or_new_by($klass, $params=array())
   {
-  	$params = ActiveRecord::construct_params($klass, $params);
+  	$params = self::construct_params($klass, $params);
   	$o = eval("return $klass::find(\$params);");
   	if (!$o)
   	{
@@ -415,8 +415,8 @@ class ActiveRecord
   
   static function _find_all($klass, $params=array())
   {
-  	$params = ActiveRecord::construct_params($klass, $params);
-  	$arr = ActiveRecord::_select_assoc($klass, $params);
+  	$params = self::construct_params($klass, $params);
+  	$arr = self::_select_assoc($klass, $params);
   	$recs=array();
   	$ms = static::$model_settings;
   	foreach($arr as $rec)
@@ -454,7 +454,7 @@ class ActiveRecord
 
   	if ($params['load'])
   	{
-  	  ActiveRecord::eager_load_associated($klass, $recs, $params['load']);
+  	  self::eager_load_associated($klass, $recs, $params['load']);
   	}
   	
   	foreach($recs as $rec)
@@ -467,8 +467,8 @@ class ActiveRecord
 
   static function _paginate($klass, $params=array(), $page=1, $items=20, &$pages)
   {
-  	$params = ActiveRecord::construct_params($klass, $params);
-  	$arr = ActiveRecord::_select_assoc($klass, $params);
+  	$params = self::construct_params($klass, $params);
+  	$arr = self::_select_assoc($klass, $params);
   	$recs=array();
   	foreach($arr as $rec)
   	{
@@ -489,8 +489,8 @@ class ActiveRecord
     $page = $pages; 
     } 
     $params['limit']= ($page - 1) * $items.',' .$items;
-  	$params = ActiveRecord::construct_params($klass, $params);
-  	$arr = ActiveRecord::_select_assoc($klass, $params);
+  	$params = self::construct_params($klass, $params);
+  	$arr = self::_select_assoc($klass, $params);
   	$recs=array();
   	foreach($arr as $rec)
   	{
@@ -504,7 +504,7 @@ class ActiveRecord
     
   	if ($params['load'])
   	{
-  	  ActiveRecord::eager_load_associated($klass, $recs, $params['load']);
+  	  self::eager_load_associated($klass, $recs, $params['load']);
   	}
   	
   	
@@ -539,10 +539,12 @@ class ActiveRecord
         $bt_klass,
         $bt_fk
       ) = $bt_array;
-      $ids=W::array_collect($objs,$bt_fk);
+      $ids=W::array_collect($objs, function($k, $v) use(&$bt_fk) {
+        return $v->$bt_fk;
+      });
       if (count($ids)==0) continue;
 
-      $ids = array_map("ActiveRecord::sanitize", $ids);
+      $ids = array_map("self::sanitize", $ids);
       $ids = array_wrap($ids, "'");
       $ids = join(array_unique($ids),',');
       $params = array(
@@ -554,7 +556,7 @@ class ActiveRecord
 
       if (is_array($assocs) && array_key_exists($bt_alias, $assocs))
       {
-        ActiveRecord::eager_load_associated($bt_alias, $assoc_objs, $assocs[$bt_alias]);
+        self::eager_load_associated($bt_alias, $assoc_objs, $assocs[$bt_alias]);
       }
 
       foreach($objs as $k=>$v)
@@ -580,11 +582,14 @@ class ActiveRecord
 
       $hm_klass = W::classify(W::singularize($hm));
   
-      $ids=W::array_collect($objs,'id', $hm);
+      // Collect all the IDs of the objects
+      $ids=W::array_collect($objs, function($k,$v) {
+        return $v->id;
+      });
       
-      for($i=0;$i<count($objs);$i++)
+      foreach($objs as $k=>$v)
       {
-      	$objs[$i]->$hm_alias = array();
+        $objs[$k]->$hm_alias = array();
       }
       
       if (count($ids)==0) continue;
@@ -615,7 +620,9 @@ class ActiveRecord
   	  if (array_search ($hmt_alias, $current_assocs)===FALSE) continue;
   	  foreach($objs as $obj) $obj->$hmt_alias = array();
 
-      $ids=W::array_collect($objs,'id');
+      $ids=W::array_collect($objs,function($k,$v) {
+        return $v->id;
+      });
       if (count($ids)==0) continue;
 
       list(
@@ -623,13 +630,13 @@ class ActiveRecord
         $hm_fk
       ) = eval("return $klass::\$has_many['$hm_assoc'];");
 
-      $hm_table_name = static::$table_name;
+      $hm_table_name = self::_model_table_name($hm_klass);
       
       list(
         $bt_klass,
         $bt_fk
       ) = eval("return $hm_klass::\$belongs_to['$bt_assoc'];");
-      $bt_table_name = static::$table_name;
+      $bt_table_name = self::_model_table_name($bt_klass);
 
       $ids = join(array_unique($ids),',');
       $params = array(
@@ -641,7 +648,7 @@ class ActiveRecord
       $hm_objs = eval("return $bt_klass::find_all(\$params);");
       if (is_array($assocs) && array_key_exists($hm_alias, $assocs))
       {
-        ActiveRecord::eager_load_associated($hm_klass, $hm_objs, $assocs[$hmt_alias]);
+        self::eager_load_associated($hm_klass, $hm_objs, $assocs[$hmt_alias]);
       }
       foreach($hm_objs as $assoc_obj)
       {
@@ -1061,7 +1068,7 @@ function index()
   		  switch($ms['type'][$k][0])
   		  {
   		    case 'datetime':
-  		      $v = ActiveRecord::db_date($v);
+  		      $v = self::db_date($v);
   		      break;
           case 'varchar':
           case 'longtext':
@@ -1085,14 +1092,14 @@ function index()
   		  }
         if($v!==null)
         {
-    			$values[] = ActiveRecord::quote($v);
+    			$values[] = self::quote($v);
     		} else {
     		  $values[] = 'null';
     		}  
   		}
   	}
   	$values = join($values,", ");
-  	$tn = ActiveRecord::_model_table_name($klass);
+  	$tn = self::_model_table_name($klass);
   	$sql = "insert into $tn ($fields) values ($values)";
   	$this->last_query = $sql;
   	W::db_query($sql);
@@ -1118,7 +1125,7 @@ function index()
   
   static function quote($v)
   {
-  	return "'" . ActiveRecord::sanitize($v) . "'";
+  	return "'" . self::sanitize($v) . "'";
   }
   
   function update()
@@ -1144,7 +1151,7 @@ function index()
   		  switch($ms['type'][$k][0])
   		  {
   		    case 'datetime':
-  		      $v = ActiveRecord::db_date($v);
+  		      $v = self::db_date($v);
   		      break;
           case 'varchar':
           case 'longtext':
@@ -1168,14 +1175,14 @@ function index()
         }
         if($v!==null)
         {
-    			$assignments[] = "`$k` = " . ActiveRecord::quote($v);
+    			$assignments[] = "`$k` = " . self::quote($v);
     		} else {
     			$assignments[] = "`$k` = null";
     		}  
   		}
   	}
   	$assignments=join($assignments,', ');
-  	$tn = ActiveRecord::_model_table_name($klass);
+  	$tn = self::_model_table_name($klass);
   	$sql = "update $tn set $assignments where {$this->pk()}='{$this->id()}'";
   	$this->last_query = $sql;
   	W::db_query($sql);
@@ -1221,7 +1228,7 @@ function index()
   {
     if (!is_array($assocs)) $assocs = array($assocs);
     $objs = array($this);
-    ActiveRecord::eager_load_associated(get_class($this), $objs, $assocs);
+    self::eager_load_associated(get_class($this), $objs, $assocs);
   }
     
   function collection_class_name($coll)
@@ -1334,9 +1341,9 @@ function index()
   {
     if($val===null)
     {
-      $params = ActiveRecord::add_condition($params, "`$table_name`.`$field_name` is null");
+      $params = self::add_condition($params, "`$table_name`.`$field_name` is null");
     } else {
-      $params = ActiveRecord::add_condition($params, "`$table_name`.`$field_name` = ?", $val);
+      $params = self::add_condition($params, "`$table_name`.`$field_name` = ?", $val);
     }
     return $params;
   }

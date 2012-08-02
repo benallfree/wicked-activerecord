@@ -21,10 +21,9 @@ if(!file_exists($hash_fpath))
   $model_info = W::s_var_export($cg->model_info);
   $attribute_names = W::s_var_export($cg->attribute_names);
   $php = <<<PHP
-  <?
+<?
   \$config['model_info'] = $model_info;
   \$config['attribute_names'] = $attribute_names;
 PHP;
-
-  file_put_contents($config['cache_fpath']."/config.php", $php);
+  file_put_contents($config['cache_fpath']."/config.php", trim($php));
 }

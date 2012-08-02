@@ -20,54 +20,54 @@ class <?=$klass?> extends ActiveRecord
 
   static function count($params=array())
   {
-    return ActiveRecord::_count('<?=$klass?>', $params);
+    return static::_count('<?=$klass?>', $params);
   }
  
   static function create($params=array())
   {
-    return ActiveRecord::_create('<?=$klass?>', $params);
+    return static::_create('<?=$klass?>', $params);
   }
 
   static function bulk_create($params_arr=array())
   {
-    return ActiveRecord::_bulk_create('<?=$klass?>', $params_arr);
+    return static::_bulk_create('<?=$klass?>', $params_arr);
   }
 
   static function delete_all($params=array())
   {
-    return ActiveRecord::_delete_all('<?=$klass?>', $params);
+    return static::_delete_all('<?=$klass?>', $params);
   }
   
   static function find($params=array())
   {
-    return ActiveRecord::_find('<?=$klass?>', $params);
+    return static::_find('<?=$klass?>', $params);
   }
   
 
   static function find_all($params=array())
   {
-    return ActiveRecord::_find_all('<?=$klass?>', $params);
+    return static::_find_all('<?=$klass?>', $params);
   }
 
   static function find_or_create_by($params=array())
   {
-    return ActiveRecord::_find_or_create_by('<?=$klass?>', $params);
+    return static::_find_or_create_by('<?=$klass?>', $params);
   }
 
   static function create_or_update_by($params=array())
   {
-    return ActiveRecord::_create_or_update_by('<?=$klass?>', $params);
+    return static::_create_or_update_by('<?=$klass?>', $params);
   }
 
 
   static function find_or_new_by($params=array())
   {
-    return ActiveRecord::_find_or_new_by('<?=$klass?>', $params);
+    return static::_find_or_new_by('<?=$klass?>', $params);
   }
     
   static function select_assoc($params)
   {
-    return ActiveRecord::_select_assoc('<?=$klass?>', $params);
+    return static::_select_assoc('<?=$klass?>', $params);
   }
 
   <? foreach($fields as $data) {
@@ -81,29 +81,29 @@ class <?=$klass?> extends ActiveRecord
   
   static function find_by_<?=$field_name?>($val, $params=array())
   {
-    $params = ActiveRecord::_stub_params($val,$params, '<?=$table_name?>', '<?=$field_name?>');
-    return ActiveRecord::_find('<?=$klass?>', $params);
+    $params = static::_stub_params($val,$params, '<?=$table_name?>', '<?=$field_name?>');
+    return static::_find('<?=$klass?>', $params);
   }
 
 
   static function find_all_by_<?=$field_name?>($val, $params=array())
   {
-    $params = ActiveRecord::_stub_params($val,$params, '<?=$table_name?>', '<?=$field_name?>');
-    return ActiveRecord::_find_all('<?=$klass?>', $params);
+    $params = static::_stub_params($val,$params, '<?=$table_name?>', '<?=$field_name?>');
+    return static::_find_all('<?=$klass?>', $params);
   }
   
   static function find_or_create_by_<?=$field_name?>($val, $params=array())
   {
-    $params = ActiveRecord::_stub_params($val,$params, '<?=$table_name?>', '<?=$field_name?>');
+    $params = static::_stub_params($val,$params, '<?=$table_name?>', '<?=$field_name?>');
     $params['attributes']['<?=$field_name?>'] = $val;
-    return ActiveRecord::_find_or_create_by('<?=$klass?>', $params);
+    return static::_find_or_create_by('<?=$klass?>', $params);
   }
 
   static function find_or_new_by_<?=$field_name?>($val, $params=array())
   {
-    $params = ActiveRecord::_stub_params($val,$params, '<?=$table_name?>', '<?=$field_name?>');
+    $params = static::_stub_params($val,$params, '<?=$table_name?>', '<?=$field_name?>');
     $params['attributes']['<?=$field_name?>'] = $val;
-    return ActiveRecord::_find_or_new_by('<?=$klass?>', $params);
+    return static::_find_or_new_by('<?=$klass?>', $params);
   } 
   <? } ?>
 }
