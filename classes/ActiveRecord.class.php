@@ -1105,8 +1105,8 @@ function index()
   	W::db_query($sql);
   	if ($ms['is_auto_increment']['id']) 
   	{
-      global $__wicked;
-  	  $this->id(mysql_insert_id($__wicked['modules']['db']['current']['handle']));
+      $db_info = W::db_current();
+  	  $this->id(mysql_insert_id($db_info['handle']));
   	} else {
   		if ($attrs[$this->pk()])
   		{
