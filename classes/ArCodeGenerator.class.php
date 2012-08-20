@@ -186,7 +186,7 @@ class ArCodeGenerator
   			{
   		    if($data['Comment']=='-') continue; // force skip
   				$field_name = $data['Field'];
-   			  if ($data['Comment']!='') $field_name = strtolower(W::singularize(tableize($data['Comment']))) .'_id';
+   			  if ($data['Comment']!='') $field_name = strtolower(W::singularize(W::tableize($data['Comment']))) .'_id';
   				if ($field_name != $stn.'_id') continue; // skip if it's not referring back to the master table
   			  if (isset($hm_duplicates[$hm_table_name]))
   			  {

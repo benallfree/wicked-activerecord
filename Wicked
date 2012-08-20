@@ -1,8 +1,13 @@
 <?
 
 $config = array(
-  'requires'=>array('php_sandbox', 'inflection', 'db', 'collections'),
-  'should_codegen'=>defined('DEBUG'),
+  'requires'=>array(
+    'php_sandbox',
+    'inflection', 
+    'db', 
+    'collections'
+  ),
+  'should_codegen'=>true,
 );
 
 $config['tables'] = array(

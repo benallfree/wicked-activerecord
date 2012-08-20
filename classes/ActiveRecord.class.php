@@ -65,14 +65,14 @@ class ActiveRecord
       return $this->$prop_name != $o->$ov;
     }
   
-    W::error("No getter defined $f");
+    W::error("No getter defined $name");
 	}
 	
 	function __call($name, $args)
 	{
-    array_unshift($args, $this);
     if(isset(static::$functions[$name]))
     {
+      array_unshift($args, $this);
       return call_user_func_array(static::$functions[$name], $args);
     }
     
@@ -104,9 +104,9 @@ class ActiveRecord
     if(isset($hms[$name]))
     {
       $params = array();
-      if(count($arguments)>0) $params = array_shift($arguments);
+      if(count($args)>0) $params = array_shift($args);
       $params = ActiveRecord::add_condition($params, "{$hms[$name][1]} = ?", $this->id);
-      $objs = ActiveRecord::_find_all(classify(singularize($hms[$name][0])), $params);
+      $objs = ActiveRecord::_find_all(W::classify(W::singularize($hms[$name][0])), $params);
       return $objs;
     }
     
@@ -122,11 +122,11 @@ class ActiveRecord
       if(count($arguments)>0) $params = array_shift($arguments);
       $table_name = static::$table_name;
       $params['joins'] = "join $junction_table_name r on r.{$fk_name}_id = {$name}.id and r.user_id = {$o->id}";
-      $objs = ActiveRecord::_find_all(classify(singularize($name)), $params);
+      $objs = ActiveRecord::_find_all(W::classify(W::singularize($name)), $params);
       return $objs;
     }
         
-    W::error("No function $f()");	 
+    W::error("No function $name()");	 
 	}
 
   
@@ -418,7 +418,7 @@ class ActiveRecord
   	$params = self::construct_params($klass, $params);
   	$arr = self::_select_assoc($klass, $params);
   	$recs=array();
-  	$ms = static::$model_settings;
+  	$ms = eval("return $klass::\$model_settings;");
   	foreach($arr as $rec)
   	{
   		$o = new $klass();
@@ -520,7 +520,7 @@ class ActiveRecord
   {
     if(count($objs)==0) return;
     if (!is_array($assocs)) $assocs = array($assocs);
-    $current_assocs = keys($assocs);
+    $current_assocs = array_keys($assocs);
     $arr = eval("return $klass::\$belongs_to;");
     if (!is_array($arr)) $arr = array($arr);
     foreach($current_assocs as $assoc)
@@ -545,7 +545,7 @@ class ActiveRecord
       if (count($ids)==0) continue;
 
       $ids = array_map("self::sanitize", $ids);
-      $ids = array_wrap($ids, "'");
+      $ids = W::array_wrap(&$ids, "'");
       $ids = join(array_unique($ids),',');
       $params = array(
         'conditions'=>array("id in (!)", $ids)
@@ -1270,6 +1270,7 @@ function index()
   
   static function add_condition($params, $where)
   {
+    if(is_object($params)) W::dprint($params);
     if (array_key_exists('conditions', $params))
     {
       if (!is_array($params['conditions']))
