@@ -6,6 +6,11 @@ class ActiveRecord
   var $errors=array();
   static $eager_load = array();
   
+  static function add_method($func_name, $callback)
+  {
+    static::$functions[$func_name] = $callback;
+  }
+
   static function add_function($func_name, $callback)
   {
     static::$functions[$func_name] = $callback;
