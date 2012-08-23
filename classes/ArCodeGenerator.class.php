@@ -160,11 +160,11 @@ class ArCodeGenerator
   			{
   			  $bt_alias = W::startof($field_name,'_id');
   			  $bt_class_name = $this->config['class_prefix'].W::classify($bt_alias);
+  			  if($data['Comment'] == '-') continue; 
   			  if ($data['Comment']!='')
   			  {
   			    $bt_class_name = $this->config['class_prefix'].W::classify(W::singularize(trim($data['Comment'])));
   			  }
-  			  if($bt_class_name == '-') continue; 
   				$belongs_to[$table_name][$bt_alias] = array($bt_class_name, $field_name);
   			}
   		}
@@ -259,7 +259,7 @@ class ArCodeGenerator
         $this->config['table_lookup'][$ar_table_name] = $table_name;
         $tables[$ar_table_name] = W::db_query_assoc("show full columns from `$table_name`");
         $stn = W::singularize($ar_table_name);
-        $klass=W::classify($stn);
+        $klass=$this->config['class_prefix'].W::classify($stn);
         $this->compute_model_settings($klass, $table_name);
         $this->config['models'][] = $klass;
         
@@ -275,7 +275,7 @@ class ArCodeGenerator
     foreach($tables as $table_name=>$fields)
     {
       $stn = W::singularize($table_name);
-      $klass=W::classify($stn);
+      $klass=$this->config['class_prefix'].W::classify($stn);
     
   		$attribute_types[$table_name] = array();
   
@@ -368,7 +368,7 @@ class ArCodeGenerator
     foreach($tables as $table_name=>$fields)
     {
       $stn = W::singularize($table_name);
-      $klass=W::classify($this->deprefix($stn));
+      $klass=$this->config['class_prefix'].W::classify($this->deprefix($stn));
 
   		$s_belongs_to = W::s_var_export($belongs_to[$table_name]);
   		$s_has_many = W::s_var_export($has_many[$table_name]);
@@ -378,7 +378,7 @@ class ArCodeGenerator
     
       $php = "<?\n".W::php_sandbox($this->base_fpath."/codegen/class_stub.php", 
   		  array(
-  		    'klass'=>"{$this->config['class_prefix']}{$klass}",
+  		    'klass'=>"{$klass}",
   		    's_belongs_to'=>$s_belongs_to,
   		    's_has_many'=>$s_has_many,
   		    's_hmt'=>$s_hmt,
@@ -393,7 +393,7 @@ class ArCodeGenerator
   		  true
   		);
   		
-      $fpath = $this->cache_fpath."/{$this->config['class_prefix']}{$klass}.class.php";
+      $fpath = $this->cache_fpath."/{$klass}.class.php";
       file_put_contents($fpath, $php);
   	}
   }
