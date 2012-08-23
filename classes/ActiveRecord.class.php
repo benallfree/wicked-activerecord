@@ -1,4 +1,5 @@
 <?
+namespace com\benallfree\wicked\activerecord;
 
 class ActiveRecord 
 {
@@ -228,7 +229,7 @@ class ActiveRecord
     $event_name = "{$tn}_before_select";
     $params = W::filter($event_name, $params);
     
-  	$tn = self::_model_table_name($klass);
+  	$tn = '`'.self::_model_table_name($klass).'`';
     $columns = "$tn.*";
     $joins = '';
     $where = '';
@@ -557,6 +558,7 @@ class ActiveRecord
       );
       if (array_key_exists($bt_alias, $assocs)) $params['load'] = $assocs[$bt_alias];
       
+      if(!class_exists($bt_klass)) W::error("$bt_klass not found.");
       $assoc_objs = eval("return $bt_klass::find_all(\$params);");
 
       if (is_array($assocs) && array_key_exists($bt_alias, $assocs))
@@ -602,7 +604,7 @@ class ActiveRecord
       $ids = join(array_unique($ids),',');
   
       $params = array(
-        'conditions'=>"$hm_fk in ($ids)"
+        'conditions'=>"`$hm_fk` in ($ids)"
       );
       if (array_key_exists($hm_alias, $assocs)) $params['load'] = $assocs[$hm_alias];
       $hm_objs = eval("return $hm_klass::find_all(\$params);");
@@ -645,9 +647,9 @@ class ActiveRecord
 
       $ids = join(array_unique($ids),',');
       $params = array(
-        'columns'=>"$bt_table_name.*, $hm_table_name.$hm_fk as __rel_id",
-        'conditions'=>"$hm_table_name.$hm_fk in ($ids)",
-        'joins'=>"join $hm_table_name on $hm_table_name.$bt_fk = $bt_table_name.id"
+        'columns'=>"`$bt_table_name`.*, `$hm_table_name`.`$hm_fk` as __rel_id",
+        'conditions'=>"`$hm_table_name`.`$hm_fk` in ($ids)",
+        'joins'=>"join `$hm_table_name` on `$hm_table_name`.`$bt_fk` = `$bt_table_name`.id"
       );
       if (array_key_exists($hm_alias, $assocs)) $params['load'] = $assocs[$hmt_alias];
       $hm_objs = eval("return $bt_klass::find_all(\$params);");
@@ -681,6 +683,7 @@ class ActiveRecord
   static function _model_table_name($klass)
   {
   	if ($klass=='activerecord') W::error("Recursion error on $klass");
+  	if(!class_exists($klass)) W::error("Class $klass does not exist.");
   	$tn = eval("return $klass::\$table_name;");
   	return $tn;
   }
@@ -739,6 +742,8 @@ class ActiveRecord
       case 'enum':
       case 'varchar':
       case 'longtext':
+      case 'mediumtext':
+      case 'text':
       case 'char':
       case 'tinytext':
         break;
@@ -1077,8 +1082,15 @@ function index()
   		      break;
           case 'varchar':
           case 'longtext':
+          case 'mediumtext':
+          case 'text':
           case 'char':
-            $v = preg_replace("/\r/", '', $v);
+            if ($v===false) 
+            {
+              $v='';
+            } else {
+              $v = preg_replace("/\r/", '', $v);
+            }
             break;
           case 'int':
           case 'tinyint':
@@ -1088,12 +1100,6 @@ function index()
             if ($v===false) $v=0;
             if ($v==='') $v=null;
             break;
-          case 'varchar':
-          case 'varchar':
-          case 'longtext':
-          case 'char':
-            if ($v===false) $v='';
-            break;  		  
   		  }
         if($v!==null)
         {
@@ -1160,8 +1166,15 @@ function index()
   		      break;
           case 'varchar':
           case 'longtext':
+          case 'text':
+          case 'medium text':
           case 'char':
-            $v = preg_replace("/\r/", '', $v);
+            if ($v===false) 
+            {
+              $v='';
+            } else {
+              $v = preg_replace("/\r/", '', $v);
+            }
             break;
           case 'int':
           case 'tinyint':
@@ -1171,12 +1184,6 @@ function index()
             if ($v===false) $v=0;
             if ($v==='') $v=null;
             break;
-          case 'varchar':
-          case 'varchar':
-          case 'longtext':
-          case 'char':
-            if ($v===false) $v='';
-            break;  		  
         }
         if($v!==null)
         {
