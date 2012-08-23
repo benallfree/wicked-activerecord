@@ -1,6 +1,4 @@
 <?
-namespace com\benallfree\wicked\activerecord;
-
 class ActiveRecord 
 {
   var $is_new=true;
