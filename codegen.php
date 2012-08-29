@@ -1,5 +1,4 @@
 <?
-
 W::load('string');
 W::load('inflection');
 W::load('path_utils');
@@ -14,6 +13,7 @@ $md5 = $cg->calc_hash();
 $hash_fpath = $config['cache_fpath']."/$md5";
 if(!file_exists($hash_fpath))
 {
+  W::ensure_writable_folder($config['cache_fpath']);
   touch($hash_fpath);
   W::clear_cache($config['cache_fpath']);
   $cg->generate();
