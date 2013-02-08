@@ -905,6 +905,7 @@ class ActiveRecord
   function _after_load()
   {
     $this->event('unserialize');
+    $this->event('deserialize');
     
     $klass = $this->klass;
 	  $an = static::$attribute_names;

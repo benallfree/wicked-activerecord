@@ -327,7 +327,7 @@ class ArCodeGenerator
     $uniques = array();
     foreach($tables as $table_name=>$fields)
     {
-      $res = W::db_query_assoc("show index from `!`", $table_name);
+      $res = W::db_query_assoc("show index from `!`", $this->config['prefix'].$table_name);
       $keys = array();
       foreach($res as $r)
       {

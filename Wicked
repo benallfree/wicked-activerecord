@@ -73,6 +73,3 @@ foreach($conventions as $k=>$v)
   if(!isset($config['conventions'][$k])) $config['conventions'][$k] = $v;
 }
 
-
-
-
